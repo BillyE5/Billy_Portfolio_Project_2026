@@ -115,13 +115,9 @@ def generate_daily_signal_report(df: pd.DataFrame, file_path: str, title_text: s
             return
 
     # --- 1. 表格設定：同步化欄位與寬度 ---
-    if title_text == "ST_4RLow":
-        headers = ['股票', '當前價', '關鍵一條線', '漲幅%', '均價', '站上均價', '策略類型']
-        col_widths = [30, 30, 40, 30, 30, 20, 80]
-    else:
-        headers = ['股票', '當前價', '漲幅%', '均價', '站上均價', '策略類型']
-        col_widths = [30, 30, 30, 30, 20, 80]
-    
+    headers = ['股票', '當前價', '漲幅%', '均價', '站上均價', '策略類型']
+    col_widths = [30, 30, 30, 30, 20, 80]
+
     # 表頭繪製
     pdf.set_fill_color(200, 220, 255)
     for i, header in enumerate(headers):

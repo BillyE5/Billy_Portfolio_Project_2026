@@ -17,7 +17,7 @@
 #### 1. 波段選股與績效追蹤 (Swing Trade & Dashboard) - `swingTrade/`
 核心策略引擎與視覺化介面，是日常交易決策的中樞。
 *   **Swing & Rocket Strategy (`ST_PRocket.py`)**: 
-    *   實作「關鍵一條線」與「波段趨勢」等多策略邏輯。
+    *   實作多種策略邏輯。
     *   每日盤後自動掃描熱門名單，產出高潛力觀察名單。
 *   **Dashboard (`ST_tracking.py`)**: 
     *   基於 Streamlit 開發的互動式畫面。
@@ -31,25 +31,24 @@
 
 #### 3. 日常維運腳本 (Daily Scripts) - `scripts/`
 負責每日盤後的標準作業程序 (SOP) 自動化。
-*   **主控流程 (`daily_job.bat`)**: 串接備份(`bak_all_db_sql.py`、`bak_signal_rep_csv.py`)、日K棒資料更新(`upd_daily_kbars.py`)、帳務追蹤(`pf_tracker.py`)的一鍵式批次檔。
+*   **主控流程 (`daily_job.bat`)**: 串接備份(`bak_all_db_sql.py`)、日K棒資料更新(`upd_daily_kbars.py`)、帳務追蹤(`pf_tracker.py`)的一鍵式批次檔。
     *   **資料維護 (`upd_daily_kbars.py`)**: 每日更新個股日 K 線 (OHLCV) 資料庫。
     *   **帳務追蹤 (`pf_tracker.py`)**: 紀錄每日帳戶淨值、已實現/未實現損益等績效。
 
 #### 4. 資料備份與安全 (Backups)**
 確保數據與交易紀錄的安全性。
 *   **資料庫備份 (`bak_all_db_sql.py`)**: 定期導出 SQL 備份檔。
-*   **報表備份 (`bak_signal_rep_csv.py`)**: 以 CSV 檔案備份選股名單。
 *   **備份存放 (`backups/`)**: 集中管理所有歷史備份檔案。
 
 #### 5. 通知與雲端同步 (Notification & Sync)
 為了實現無人值守的監控，系統整合了 Telegram Bot 即時通知與雲端備份機制：
 1.  **Telegram 策略播報**：
-    *   策略執行完畢後，Bot 會自動發送當日選股摘要（4RLow、Rocket、布林突破等策略篩選出的檔數）。
+    *   策略執行完畢後，Bot 會自動發送當日選股摘要（KD金叉等策略篩選出的檔數）。
     *   自動將 PDF 報表首頁轉檔為圖片，直接發送至聊天室預覽，方便手機快速查閱。
     *   提供雲端硬碟連結，一鍵跳轉查看完整歷史報告。
 
 2.  **Google Drive 雲端同步**：
-    *   將 `swingTrade/out/reports` 目錄與 Google Drive 進行同步(僅需配置一次)。
+    *   將 `swingTrade/out/reports` 目錄與 Google Drive 進行同步(首次需配置一次)。
     *   確保歷史選股報告與分析圖表永久保存，並可跨裝置存取。
 ---
 
@@ -110,10 +109,6 @@ graph TD
 ---
 ### 📸 系統截圖 (Screenshots)
 
-
-
-*(建議：在此處放上您的 Streamlit 放大鏡截圖，以展現視覺化效果)*
-
 #### 1. 策略追蹤放大鏡 (Dashboard Overview)
 ![Dashboard Demo](image/streamlit_dashboard_demo.png)
 *即時監控波段選股名單總績效。*
@@ -139,17 +134,6 @@ graph TD
     動態停損：採用日均MA停損機制。
 
     風險試算：在進場前自動試算預期獲利與風險承受之比例。
-
----
-
-### 📜 遺留系統與研究紀錄 (Legacy & Research)
-為了保持系統的演進脈絡，本專案將早期開發的短線策略移入 legacy/ 資料夾，作為邏輯參考與架構演進的紀錄。
-
-1. 隔日沖策略 (OneNight Strategy - Legacy)
-    狀態：目前已停止實盤運行，保留其判斷邏輯的代碼。
-
-2. 當沖策略 (DayTrade Strategy - Legacy)
-    狀態：保留其盤中監控判斷K棒型態象徵與實時 API 串接的底層架構。
 
 ---
 
@@ -186,7 +170,7 @@ graph TD
 - **啟動 Streamlit 儀表板**
     ``` Bash
     # 進入python環境
-    fubon_venv/Scripts/Activate.ps1
+    venv/Scripts/Activate.ps1
     # 跑 streamlit
     streamlit run swingTrade/ST_tracking.py
     ```

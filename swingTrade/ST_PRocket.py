@@ -1,5 +1,5 @@
 # ST_PRocket.py (多合一策略版)
-__version__ = "20260227"
+__version__ = "20260303"
 
 import os
 import sys
@@ -235,7 +235,7 @@ if __name__ == "__main__":
         else:
             removed_count += 1
 
-    # 關鍵一步：用「過濾後的乾淨資料」取代原本的資料字典
+    # 用「過濾後的乾淨資料」取代原本的資料字典
     daily_kbars_data_dict = qualified_dict
     
     # --- 3. 執行策略與產出報告 ---
@@ -249,26 +249,26 @@ if __name__ == "__main__":
     signals_pr = analyze_KD_Golden(daily_kbars_data_dict)
     if signals_pr:
         combined_signals.extend(signals_pr)
-        print(f"   ✅ [PRocket] 找到 {len(signals_pr)} 檔訊號。")
+        print(f"   ✅ [KD_Golden] 找到 {len(signals_pr)} 檔訊號。")
     else:
-        print("   ⚠️ [PRocket] 今日無訊號。")
+        print("   ⚠️ [KD_Golden] 今日無訊號。")
 
     # ==========================================
     # 3. 統一存檔與產出報告 (主策略 - 剔除漲停後)
     # ==========================================
     if combined_signals:
         df_combined = pd.DataFrame(combined_signals)
-        dup_sort_save(df_combined, "ST_PRocket + OBV")
+        dup_sort_save(df_combined, "ST_KD_Golden")
                 
         # 產出「合併版」PDF 報告
         file_name = f'ST_KD_Golden_{today_str}.pdf' 
         file_path = os.path.join(OUTPUT_DIR, file_name)
         
-        generate_daily_signal_report(df_combined, file_path, 'ST_PRocket + OBV')
+        generate_daily_signal_report(df_combined, file_path, 'ST_KD_Golden')
         
         print(f"\n🎉 報告整合完成！共 {len(combined_signals)} 檔訊號，已產出至 {file_name}")
     else:
-        print("\n😴 今日 OBV 與 Pocket Rocket 皆無訊號。")
+        print("\n😴 今日 KD 金叉無訊號。")
 
     # 執行歸檔清理
     move_old_reports(OUTPUT_DIR)
