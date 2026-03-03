@@ -78,3 +78,5 @@ daily_data_collector.ipynb
 !doc/fubon_neo-2.2.5-cp37-abi3-win_amd64.whl
 
 !core/stock_info.json
+
+!java-core/src/main/java/com/trading/project/config/
