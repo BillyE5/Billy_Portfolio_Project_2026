@@ -1,0 +1,80 @@
+# 核心 VENVs
+day_trade_venv/
+one_night_venv/
+swing_trade_venv/
+fubon_venv/
+*.venv/
+venv/
+env/
+.env/
+pyvenv.cfg
+
+# 輔助資料夾
+build/
+dist/
+etc/
+doc/
+futopt/
+Include/
+Lib/
+share/
+__pycache__/
+logs/
+*.pyc
+test/
+**/test/
+打包.txt
+test.txt
+push.txt
+
+
+# ------------------------------------------------------------------
+# 機密設定與憑證
+# ------------------------------------------------------------------
+.env
+config/
+*.pfx
+*_config.json
+
+# 執行檔和特定檔案
+**/.spec
+**/*.exe
+
+# 其他
+**/log/
+**/out/
+**/old/
+**/doc/
+buy_log/
+**/*.xlsx
+**/*.csv
+out_json/
+out_oneNight/
+futopt/
+current_positions.pkl
+current_positions_kd.pkl
+**/*.pkl
+**/*.json
+**/*.log
+daily_data_collector.ipynb
+**/*.lnk
+**/*.sql
+.idea/
+**/daily_job_*.lock
+.vs/
+
+
+# --------------------
+# 忽略所有子目錄下的 requirements.txt
+# --------------------
+**/requirements_*.txt
+
+
+
+# 要追縱 要上傳git的
+# --------------------
+# 富邦 SDK 檔案 (會追蹤)
+# --------------------
+!doc/fubon_neo-2.2.5-cp37-abi3-win_amd64.whl
+
+!core/stock_info.json

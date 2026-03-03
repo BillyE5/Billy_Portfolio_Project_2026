@@ -1,0 +1,53 @@
+# ----------------------------------------------------
+# 核心數據處理與分析
+# ----------------------------------------------------
+pandas
+numpy
+pandas-ta
+python-dateutil
+pytz
+tzdata
+
+# ----------------------------------------------------
+# 股票/交易相關工具
+# ----------------------------------------------------
+# 富邦 API(已放置於 /doc/ 資料夾 - 請額外執行：
+# pip install ./doc/fubon_neo-2.2.5-cp37-abi3-win_amd64.whl)
+
+# ----------------------------------------------------
+# 網絡請求與 API 互動 (確保連線穩定)
+# ----------------------------------------------------
+requests
+urllib3
+websocket-client
+idna
+charset-normalizer
+certifi
+
+# ----------------------------------------------------
+# 輔助工具
+# ----------------------------------------------------
+schedule
+openpyxl 
+pygame
+# pkg-resources
+pyinstaller
+pymysql
+SQLAlchemy
+load_dotenv
+ipykernel
+cryptography
+fpdf2			# PDF
+mysqlclient
+rich			 # dashboard
+ipywidgets		 # dashboard for Jupyter support
+yfinance
+pandas_market_calendars
+twstock
+lxml
+streamlit
+streamlit-autorefresh
+pyautogui
+pyperclip
+pygetwindow
+pymupdf
