@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class TradingApplication {
 
+    // 入口點
     public static void main(String[] args) {
         SpringApplication.run(TradingApplication.class, args);
         System.out.println("交易原型 Application 啟動成功.");

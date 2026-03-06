@@ -118,6 +118,10 @@ graph TD
 *即時監控波段選股名單個別績效。*
 *左側的sidebar 可以做篩選搜尋，也手動控制停損停利*
 
+#### 3. 策略選股通知
+![TGBOT_demo](image/tgbot_demo.png)
+*以TG bot通知選股名單。*
+
 ---
 
 ### 🛠️ 當前核心策略：趨勢波段交易 (Swing Strategy - Active)

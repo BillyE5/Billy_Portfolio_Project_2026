@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 儀表板 (ST_tracker 及 Streamlit UI)。
+ * 儀表板 (ST_tracker  Streamlit UI)。
  */
 @RestController
 @RequestMapping("/api/dashboard")
@@ -39,7 +39,7 @@ public class DashboardController {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
         response.put("active_holdings", inventory);
-        // 模擬波段策略選出的最新清單 (待修改)
+        // 模擬波段策略選出的最新清單(待修改)
         response.put("new_swing_signals", List.of("2330", "2881", "3008"));
 
         return response;

@@ -34,15 +34,15 @@ public class DailyJobScheduler {
     }
 
     /**
-     * 13:00 盤中執行波段選股 (對應 run_daily_PRocket.bat)
-     * 執行 auto_export_mitake.py 與 ST_PRocket.py
+     * 13:00 執行波段選股 (對應 run_daily_PRocket.bat)
+     * 執行 auto_export_mitake 與 ST_PRocket
      */
     @Scheduled(cron = "0 00 13 * * MON-FRI", zone = "Asia/Taipei")
     public void runDailyPRocket() {
         String today = LocalDate.now().format(DATE_FORMAT);
         log.info("--- [排程] 13:00 觸發波段選股作業 (run_daily_PRocket) 日期: {} ---", today);
 
-        // 執行波段選股策略 (ST_PRocket.py)
+        // 執行波段選股策略 (ST_PRocket)
         log.info("執行核心策略: SWING");
         strategyService.executeStrategy("SWING", today);
 

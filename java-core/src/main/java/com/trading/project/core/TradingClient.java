@@ -4,9 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 抽象富邦交易 API 的介面。
- * 這裡示範了低耦合設計；實際的實作將會
- * 負責處理與 Python/C++ 富邦 SDK 的 HTTP/WebSocket 連線。
+ * 券商 API 的介面。
  */
 public interface TradingClient {
 
