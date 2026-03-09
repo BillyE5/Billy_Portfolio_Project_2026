@@ -62,7 +62,7 @@ daily_data_collector.ipynb
 .idea/
 **/daily_job_*.lock
 .vs/
-
+etf_data/
 
 # --------------------
 # 忽略所有子目錄下的 requirements.txt

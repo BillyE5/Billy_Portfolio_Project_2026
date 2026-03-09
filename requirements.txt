@@ -51,3 +51,5 @@ pyautogui
 pyperclip
 pygetwindow
 pymupdf
+playwright
+dataframe_image

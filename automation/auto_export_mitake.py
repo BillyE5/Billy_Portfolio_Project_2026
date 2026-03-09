@@ -191,8 +191,8 @@ def main():
             return
     
 
-    print("⏳ 等待數據載入 (4秒)...")
-    time.sleep(4)
+    print("⏳ 等待數據載入 (3秒)...")
+    time.sleep(3)
 
     # [Step 4] 點擊匯出 (Export Icon)
     if not click_image("step4_expert.png", retry=3):
