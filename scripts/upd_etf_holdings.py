@@ -29,13 +29,19 @@ if 'core.notifier' in sys.modules:
     importlib.reload(sys.modules['core.notifier'])
 
 
-from core.notifier import send_tg_msg, send_tg_photo
+from core.notifier import send_tg_msg, send_tg_photo, send_line_message
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 
 # ================= 設定區塊 =================
-URL = "https://www.ezmoney.com.tw/ETF/Fund/Info?fundCode=49YTW"
+ETF_URL = "https://www.ezmoney.com.tw/ETF/Fund/Info?fundCode=49YTW"
 SAVE_DIR = "./etf_data"
+CSV_DIR = f"{SAVE_DIR}/out_csv"
+IMG_DIR = f"{SAVE_DIR}/change"
 # ============================================
 
 def check_trading_day():
@@ -53,7 +59,7 @@ def fetch_with_playwright():
         page = browser.new_page()
         
         try:
-            page.goto(URL, wait_until="domcontentloaded")
+            page.goto(ETF_URL, wait_until="domcontentloaded")
             
             # 1. 點擊紅框內的標籤 (使用 href 選擇器最精準)
             portfolio_tab = page.locator('a[href="#asset"]')
@@ -102,8 +108,8 @@ def fetch_with_playwright():
 
             # 5. 存檔
             df = pd.DataFrame(data)
-            os.makedirs(SAVE_DIR, exist_ok=True)
-            file_path = f"{SAVE_DIR}/holdings_{ad_date}.csv"
+            os.makedirs(CSV_DIR, exist_ok=True)
+            file_path = f"{CSV_DIR}/holdings_{ad_date}.csv"
             df.to_csv(file_path, index=False, encoding='utf-8-sig')
             print(f"💾 資料已存為: {file_path}")
             browser.close()
@@ -139,8 +145,8 @@ def compare_with_prev_trading_day(current_date_str):
     prev_date_str = valid_days_list[current_idx - 1]
     
     # 2. 定義兩個目標檔案的路徑
-    file_new = f"{SAVE_DIR}/holdings_{current_date_str}.csv"
-    file_old = f"{SAVE_DIR}/holdings_{prev_date_str}.csv"
+    file_new = f"{CSV_DIR}/holdings_{current_date_str}.csv"
+    file_old = f"{CSV_DIR}/holdings_{prev_date_str}.csv"
     
     # 3. 🚨 嚴格防呆：如果昨天的檔案不存在，直接拒絕比對
     if not os.path.exists(file_old):
@@ -246,11 +252,17 @@ if __name__ == "__main__":
             }).hide(axis="index") # 依然隱藏原生 index
 
             # 存成圖片
-            img_path = f"{SAVE_DIR}/00981A_change.png"
+            os.makedirs(IMG_DIR, exist_ok=True)
+            img_path = f"{IMG_DIR}/00981A_change.png"
             dfi.export(styled_df, img_path, max_rows=-1)
 
-            # 發送圖片
+            # 發送圖片到 TG
             send_tg_photo(img_path, caption=f"📊 00981A 統一投信 買賣異動 ({date})")
+            
+            # 發送 LINE 雲端連結
+            gd_url = os.getenv("GD_00981A_URL", "")
+            line_msg = f"📊 00981A 統一投信 買賣異動 ({date})\n雲端: {gd_url}"
+            send_line_message(line_msg)
 
             # # 傳送完畢後，把本地端的暫存圖片刪除
             # if os.path.exists(img_path):
@@ -258,3 +270,5 @@ if __name__ == "__main__":
             #     print("🗑️ 暫存圖檔已刪除")
         elif report_msg:
             send_tg_msg(report_msg)
+            gd_url = os.getenv("GD_00981A_URL", "")
+            send_line_message(f"{report_msg}\n雲端: {gd_url}")

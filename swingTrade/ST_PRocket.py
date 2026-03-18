@@ -1,5 +1,5 @@
 # ST_PRocket.py (多合一策略版)
-__version__ = "20260303"
+__version__ = "20260316"
 
 import os
 import sys
@@ -44,11 +44,14 @@ from core.utils import (
     generate_daily_signal_report, 
     get_stock_name,
     calculate_taiwan_kd, 
-    is_golden_cross
+    is_golden_cross,
+    validate_liquidity,
+    validate_volatility,
+    move_old_reports
 )
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.db_handler import dup_sort_save
-from core.notifier import send_tg_msg, pdf_to_image_simple, send_tg_photo
+from core.notifier import send_tg_msg, send_tg_file, pdf_to_image_simple, send_tg_photo, send_line_message
 import glob # 用來搜尋檔案
 
 # =============================================================================
@@ -99,82 +102,6 @@ def analyze_KD_Golden(daily_kbars_dict):
                 signal_list.append(res)
 
     return signal_list
-
-def validate_liquidity(df, threshold_sheets=3000):
-    """
-    共用過濾器：檢查流動性是否充足
-    :param df: 個股的 K 棒 DataFrame
-    :param threshold_sheets: 最低均量門檻 (張數)，預設 3000 張
-    :return: (bool, msg) -> (是否通過, 原因)
-    """
-    if df is None or df.empty or len(df) < 20:
-        return False, "❌ 資料不足 20 天，無法計算均量"
-
-    # 1. 計算成交量均線 (5日, 10日, 20日)
-    # 注意：pandas_ta 預設 close='close'，算量要指定 close='Volume'
-    # 這裡我們不一定要 append 到 df 裡汙染原始資料，直接算出來判斷即可
-    vol_sma5 = df['Volume'].rolling(5).mean().iloc[-1]
-    vol_sma10 = df['Volume'].rolling(10).mean().iloc[-1]
-    vol_sma20 = df['Volume'].rolling(20).mean().iloc[-1]
-
-    # 2. 單位轉換 (假設資料庫存的是 '股'，1張 = 1000股)
-    # 如果你的資料庫存的是 '張'，就不用 * 1000
-    threshold_shares = threshold_sheets * 1000 
-
-    # 3. 判斷邏輯：寬鬆版 (只要其中一條均線達標就算過)
-    # 波段操作建議看 5日 (熱度) 或 20日 (穩定度)
-    pass_5ma = vol_sma5 >= threshold_shares
-    pass_10ma = vol_sma10 >= threshold_shares
-    pass_20ma = vol_sma20 >= threshold_shares
-
-    if pass_5ma or pass_10ma or pass_20ma:
-        # 詳細一點可以回傳是哪條線過了
-        return True, f"✅ 流動性充足 (5MA:{int(vol_sma5/1000)}張, 20MA:{int(vol_sma20/1000)}張)"
-    else:
-        return False, f"❌ 流動性不足 (均量皆未達 {threshold_sheets} 張)"
-
-def move_old_reports(report_folder_path):
-    """
-    將指定資料夾中，日期早於「今天」的 PDF 報表移動到 old 資料夾。
-    """
-    # 1. 確保 old 資料夾存在
-    archive_dir = os.path.join(report_folder_path, "old")
-    if not os.path.exists(archive_dir):
-        os.makedirs(archive_dir)
-        print(f"📁 建立歸檔資料夾: {archive_dir}")
-
-    # 2. 取得今天的日期字串 (格式: YYYYMMDD，例如 20260130)
-    today_str = datetime.now().strftime('%Y%m%d')
-    
-    print(f"🧹 開始清理舊報表 (保留 {today_str}，其餘歸檔)...")
-    
-    count = 0
-    # 3. 掃描資料夾
-    for filename in os.listdir(report_folder_path):
-        # 只處理 PDF 檔
-        if filename.endswith(".pdf"):
-            # 使用正規表達式抓取檔名中的日期 (假設格式為 _YYYYMMDD.pdf)
-            match = re.search(r'_(\d{8})\.pdf$', filename)
-            
-            if match:
-                file_date_str = match.group(1)
-                
-                # 4. 比較日期：如果檔案日期 < 今天 (字串比較即可，因為是 YYYYMMDD 格式)
-                if file_date_str < today_str:
-                    src_path = os.path.join(report_folder_path, filename)
-                    dst_path = os.path.join(archive_dir, filename)
-                    
-                    try:
-                        # 如果 old 裡面已經有同名檔案，shutil.move 可能會報錯或覆蓋，
-                        # 這裡簡單處理，直接移動
-                        shutil.move(src_path, dst_path)
-                        print(f"   📦 已歸檔: {filename}")
-                        count += 1
-                    except Exception as e:
-                        print(f"   ❌ 移動失敗 {filename}: {e}")
-
-    print(f"✨ 清理完成，共歸檔 {count} 個舊報表。")
-
 
 if __name__ == "__main__":
     print(f"version : {__version__}")
@@ -270,27 +197,32 @@ if __name__ == "__main__":
     else:
         print("\n😴 今日 KD 金叉無訊號。")
 
-    # 執行歸檔清理
-    move_old_reports(OUTPUT_DIR)
+    # 執行歸檔清理 (改為傳入上一層的 out 目錄)
+    base_out_dir = os.path.join(current_dir, 'out')
+    move_old_reports(base_out_dir)
 
     print("\n" + "="*50)
 
     # ==========================================
-    # 🚀 Telegram 通知發送區
+    # 🚀 通知發送區
     # ==========================================
-    print("\n🚀 準備發送 Telegram 通知...")
+    print("\n🚀 準備發送 Line/Telegram 通知...")
     
     # 1. 準備文字摘要
     count_combined = len(combined_signals) if combined_signals else 0
     
+    folder_url = os.getenv("GD_ST_REPORT_URL")
+    
     summary_msg = (
         f"✅ **{today_str} 選股策略報告**\n\n"
         f"🚀 **KD金叉**：{count_combined} 檔\n"
-        "內容請查看圖片 👇"
+        "完整內容已同步至雲端。\n"
+        f'雲端: {folder_url}'
     )
     
-    # 發送文字訊息
+    # 發送通知
     send_tg_msg(summary_msg)
+    send_line_message(summary_msg)
     
     # 2. 發送 PDF 檔案 (批次發送)
     # 使用 glob 搜尋今天產生的所有 PDF
@@ -324,10 +256,10 @@ if __name__ == "__main__":
             # print(f"   📄 發送完整 PDF...")
             # send_tg_file(pdf_path, caption=f"📊 完整報告下載")
         
-        send_tg_msg(f"✅ 報告傳送完成！ \n", parse_mode=None)
+        # send_tg_msg(f"✅ 報告傳送完成！ \n", parse_mode=None)
     else:
-        print(" ⚠️ 找不到今日產生的 PDF 報告。")
-        send_tg_msg("⚠️ 系統回報：今日無產出任何 PDF 報告。")
+        # print(" ⚠️ 找不到今日產生的 PDF 報告。")
+        send_tg_msg("⚠️ 系統回報：今日無產出任何 PDF 報告。", parse_mode=None)
 
     print("\n" + "="*50)
     print("🎉 全部作業完成！")

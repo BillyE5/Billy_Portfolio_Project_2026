@@ -17,6 +17,7 @@ from core.utils import calculate_holding_days, check_stock_survival_rules
 
 try:
     from core.db_handler import get_db_engine, _read_dataframe_from_sql, get_close_price_from_db, get_stock_ma_indicators, get_latest_data_with_atr, close_trade_signal, update_to_watchlist, update_to_resurrected, append_note, update_signal_pf, get_one_day_kbar, load_kbars_from_db, update_to_tracking
+    from core.notifier import send_line_message, send_tg_msg
 except ImportError as e:
     print(f"❌ 匯入錯誤: {e}")
     sys.exit(1)
@@ -299,7 +300,7 @@ class PfTracker:
                         if origin_status == 'RESURRECTED':
                             # 曾經復活過，現在又死 -> 二度淘汰
                             new_note = f"(T+{days_held}) ({current_roi:.2f}%) 二度淘汰: {msg}"
-                            print(f"⚰️ {symbol} {stock_name} (T+{days_held}) ({current_roi:.2f}%) 二度淘汰。原因: {msg}")
+                            print(f"⚰️ {entry_date_str} {symbol} {stock_name} (T+{days_held}) ({current_roi:.2f}%) 二度淘汰。原因: {msg}")
                             
                             update_to_watchlist(
                                 row_id=row_id, 
@@ -311,7 +312,7 @@ class PfTracker:
                         else:
                             # 首次轉殭屍
                             new_note = f"(T+{days_held}) ({current_roi:.2f}%) 轉入殭屍: {msg}"
-                            print(f"🧟 [轉殭屍] {symbol} {stock_name} (T+{days_held}) ({current_roi:.2f}%) 轉入殭屍名單。原因: {msg}")
+                            print(f"🧟 [轉殭屍] {entry_date_str} {symbol} {stock_name} (T+{days_held}) ({current_roi:.2f}%) 轉入殭屍名單。原因: {msg}")
                             
                             update_to_watchlist(
                                 row_id=row_id, 
@@ -442,6 +443,107 @@ class PfTracker:
         
         print(f"✨ 觀察名單巡視完成: {resurrect_count} 檔復活, {closed_count} 檔結案淘汰。")
 
+    def export_ST_inventory(self):
+        """
+        匯出目前持有的庫存 (TRACKING, RESURRECTED, WATCH_LIST) 到 Excel，
+        並發送通知
+        """
+        # print("💾 正在匯出最新庫存狀態與發送通知...")
+        
+        query = "SELECT * FROM signal_reports WHERE final_status IN ('TRACKING', 'RESURRECTED', 'WATCH_LIST') ORDER BY final_status, date DESC"
+        df = _read_dataframe_from_sql(query)
+        
+        if df.empty:
+            msg = "✅ 今日績效結算完成。\n目前無任何持有或觀察中的庫存。"
+            send_line_message(msg)
+            send_tg_msg(msg)
+            return
+
+        # 狀態中文化
+        status_map = {
+            'TRACKING': '現役股',
+            'RESURRECTED': '復活股',
+            'WATCH_LIST': '轉弱殭屍'
+        }
+        df['final_status'] = df['final_status'].map(status_map).fillna(df['final_status'])
+
+        # 整理欄位與表頭中文化
+        col_map = {
+            'date': '日期',
+            'symbol': '股號',
+            'stock_name': '名稱',
+            'Close': '進場價',
+            'current_price': '今日現價',
+            'current_roi': '報酬率(%)',
+            'final_status': '目前狀態',
+            'signal_type': '策略類型',
+            'note': '備註'
+        }
+        
+        # 只取出有定義在 col_map 裡的欄位，並過濾掉 df 沒有的
+        available_cols = [c for c in col_map.keys() if c in df.columns]
+        export_df = df[available_cols].copy()
+        
+        # 執行重新命名
+        export_df = export_df.rename(columns=col_map)
+        
+        if '報酬率(%)' in export_df.columns:
+            export_df['報酬率(%)'] = pd.to_numeric(export_df['報酬率(%)'], errors='coerce').round(2)
+
+        # 定義狀態的順序
+        status_order = ['現役股', '轉弱殭屍', '復活股']
+        
+        # 將「目前狀態」轉為 Categorical 型態並指定順序
+        export_df['目前狀態'] = pd.Categorical(
+            export_df['目前狀態'], 
+            categories=status_order, 
+            ordered=True
+        )
+
+        # 執行多重排序：狀態按自定義順序(正向)，報酬率按數值(倒序)
+        # ascending=[True, False] 代表第一個欄位由小到大(依自定義順序)，第二個由大到小
+        export_df = export_df.sort_values(
+            by=['目前狀態', '報酬率(%)'], 
+            ascending=[True, False]
+        )
+
+        # 準備存檔路徑
+        output_dir = os.path.join(current_dir, 'swingTrade', 'out', 'inventory')
+        os.makedirs(output_dir, exist_ok=True)
+        excel_path = os.path.join(output_dir, "ST_Inventory.xlsx")
+
+        try:
+            # 使用 Excel 格式方便長輩閱讀
+            export_df.to_excel(excel_path, index=False, engine='openpyxl')
+            print(f"   ✅ 庫存表已存至: {excel_path}")
+        except Exception as e:
+            print(f"   ❌ 匯出 Excel 失敗: {e}")
+
+        # 組合訊息
+        today_str = datetime.now().strftime('%Y%m%d')
+        # 統計各狀態數量
+        status_counts = export_df['目前狀態'].value_counts()
+        
+        # 計算總資金與總損益來得到真實投報率
+        total_invest = export_df['進場價'].sum() * 1000
+        total_pnl = ((export_df['今日現價'] - export_df['進場價']) * 1000).sum()
+        
+        avg_roi = (total_pnl / total_invest * 100) if total_invest > 0 else 0.0
+
+        summary_msg = (
+            f"✅ {today_str} 盤後績效結算完成\n\n"
+            f"📊 目前庫存總結\n"
+            f"🔸 現役股: {status_counts.get('現役股', 0)} 檔\n"
+            f"🔸 復活股: {status_counts.get('復活股', 0)} 檔\n"
+            f"🔸 轉弱殭屍: {status_counts.get('轉弱殭屍', 0)} 檔\n"
+            f"💰 整體未實現平均 ROI: {avg_roi:.2f}%\n"
+            "完整明細已同步至雲端。\n"
+            f"雲端連結: {os.getenv('GD_ST_PF_REPORT_URL')}"
+        )
+        
+        send_line_message(summary_msg)
+        send_tg_msg(summary_msg)
+
 if __name__ == "__main__":
     tracker = PfTracker()
     
@@ -453,3 +555,6 @@ if __name__ == "__main__":
     
     # 3. 殭屍復活巡視 (處理 WATCH_LIST 表現好的拉回 RESURRECTED)
     tracker.check_resurrection()
+    
+    # 4. 匯出未結案的庫存並發送通知
+    tracker.export_ST_inventory()

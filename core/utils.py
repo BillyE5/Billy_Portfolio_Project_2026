@@ -9,6 +9,8 @@ import time
 from fpdf import FPDF
 import pandas as pd
 import pandas_market_calendars as mcal
+import re
+import shutil
 
 from dotenv import load_dotenv
 
@@ -223,7 +225,7 @@ def get_filtered_csv_stocks(csv_cnt:int = 1) -> set:
                 df = df[df['Volume'] * 1000 * df['Price'] >= value_threshold]
                 
                 if not df.empty:
-                    valid_stocks = df['Symbol'].astype(int).astype(str).str.zfill(4).tolist()
+                    valid_stocks = df['Symbol'].astype(str).str.strip('="').str.zfill(4).tolist()
                     all_stocks.update(valid_stocks)
 
                 print(f"  > 從 '{file_name}' 讀取 {len(valid_stocks)} 支股票。")
@@ -391,21 +393,20 @@ def check_stock_survival_rules(current_price, current_roi, days_held, ma_data, s
         target_ma = 'MA10' if current_roi > 20.0 else 'MA5'
         ref_price = ma_data.get(target_ma)
         if not ref_price or current_price <= ref_price:
-            return False, f"維持殭屍：股價仍弱 (低於 {target_ma})"
+            return False, f"股價仍弱勢 (低於 {target_ma})"
         
         # 條件 B: 獲利必須翻正 (> 0.6%) -> 防止「弱勢反彈」詐屍
         # 避免那種跌沒破線，但也沒漲上去的爛股一直復活
         if current_roi < 0.6:
-            return False, f"復活失敗：雖站上均線但未獲利 ({current_roi:.2f}%)"
+            return False, f"站上 {target_ma} 但未獲利 ({current_roi:.2f}%)"
         
-        return True, f"🧟 復活成功：帶量站上 5MA 且 獲利翻紅"
+        return True, f"站上 5MA 且 獲利翻紅"
 
     # ====================================================
     # 2. 現役防守審查 (Active Defense)
     #    針對 ACTIVE 股票，根據策略類型分流
     # ====================================================
     
-    # --- 金叉 ---
     # [T < 5]: 洗盤寬容期 (MA 防守)
     target_ma = 'MA10' if current_roi > 20.0 else 'MA5'
     ref_price = ma_data.get(target_ma)
@@ -428,4 +429,90 @@ def check_stock_survival_rules(current_price, current_roi, days_held, ma_data, s
         return False, f"資金效率汰換：T+{days_held} 獲利過低 ({current_roi:.2f}%)"
  
     return True, "續抱：狀態健康"
+
+def validate_liquidity(df, threshold_sheets=3000):
+    """
+    共用過濾器：檢查流動性是否充足
+    :param df: 個股的 K 棒 DataFrame
+    :param threshold_sheets: 最低均量門檻 (張數)，預設 3000 張
+    :return: (bool, msg) -> (是否通過, 原因)
+    """
+    if df is None or df.empty or len(df) < 20:
+        return False, "❌ 資料不足 20 天，無法計算均量"
+
+    # 1. 計算成交量均線 (5日, 10日, 20日)
+    # 這裡我們不一定要 append 到 df 裡汙染原始資料，直接算出來判斷即可
+    vol_sma5 = df['Volume'].rolling(5).mean().iloc[-1]
+    vol_sma10 = df['Volume'].rolling(10).mean().iloc[-1]
+    vol_sma20 = df['Volume'].rolling(20).mean().iloc[-1]
+
+    # 2. 單位轉換 (股換張)
+    threshold_shares = threshold_sheets * 1000 
+
+    # 3. 判斷邏輯：寬鬆版 (只要其中一條均線達標就算過)
+    # 波段操作建議看 5日 (熱度) 或 20日 (穩定度)
+    pass_5ma = vol_sma5 >= threshold_shares
+    pass_10ma = vol_sma10 >= threshold_shares
+    pass_20ma = vol_sma20 >= threshold_shares
+
+    if pass_5ma or pass_10ma or pass_20ma:
+        return True, f"✅ 流動性充足 (5MA:{int(vol_sma5/1000)}張, 20MA:{int(vol_sma20/1000)}張)"
+    else:
+        return False, f"❌ 流動性不足 (均量皆未達 {threshold_sheets} 張)"
+
+def move_old_reports(base_out_dir):
+    """
+    將指定資料夾(包含 out/ 與 out/reports/)中，日期早於「今天」的檔案移動到 old 資料夾。
+    """
+    # 1. 確保 base_out_dir/old 資料夾存在
+    archive_dir = os.path.join(base_out_dir, "old")
+    if not os.path.exists(archive_dir):
+        os.makedirs(archive_dir)
+        print(f"📁 建立歸檔資料夾: {archive_dir}")
+
+    # 2. 取得今天的日期字串 (格式: YYYYMMDD，例如 20260130)
+    today_str = datetime.now().strftime('%Y%m%d')
+    
+    print(f"🧹 開始清理舊報表 (保留 {today_str}，其餘歸檔)...")
+    
+    count = 0
+    # 3. 掃描要清理的資料夾清單
+    target_dirs = [
+        base_out_dir,                               # 處理 out/ 下的 .xlsx
+        os.path.join(base_out_dir, "reports")       # 處理 out/reports/ 下的 .pdf 
+    ]
+
+    for scan_dir in target_dirs:
+        if not os.path.exists(scan_dir):
+            continue
+            
+        for filename in os.listdir(scan_dir):
+            # 防止把資料夾當檔案處理
+            file_path = os.path.join(scan_dir, filename)
+            if not os.path.isfile(file_path):
+                continue
+                
+            # 處理 PDF, xlsx
+            if filename.lower().endswith((".pdf", ".xlsx")):
+                match = re.search(r'_(\d{8})\.(pdf|xlsx)$', filename, re.IGNORECASE)
+                if match:
+                    file_date_str = match.group(1)
+                    
+                    # 4. 比較日期：如果檔案日期 < 今天
+                    if file_date_str < today_str:
+                        dst_path = os.path.join(archive_dir, filename)
+                        
+                        try:
+                            # 如果 dst 已經存在，先刪除
+                            if os.path.exists(dst_path):
+                                os.remove(dst_path)
+                                
+                            shutil.move(file_path, dst_path)
+                            print(f"   📦 已歸檔: {filename}")
+                            count += 1
+                        except Exception as e:
+                            print(f"   ❌ 移動失敗 {filename}: {e}")
+                            
+    if count > 0:
+        print(f"✨ 清理完成，共歸檔 {count} 個舊報表。")
 
