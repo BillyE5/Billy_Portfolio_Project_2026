@@ -20,7 +20,7 @@ cd /d "%SCRIPT_DIR%"
 :: ========================================================
 :StartTask
 set PROJECT_DIR=F:\trading_project
-set LOG_DIR=%PROJECT_DIR%\scripts\logs
+set LOG_DIR=%PROJECT_DIR%\etf_data\logs
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 :: 取得當前日期 (格式: YYYYMMDD)
