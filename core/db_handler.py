@@ -623,7 +623,7 @@ def update_signal_pf(row_id:int, updates: dict):
 
 def dup_sort_save(df, strategy_name, table_name='signal_reports'):
     if df is None or df.empty:
-        print(f" ⚠️ [{strategy_name}] 無訊號，跳過儲存。")
+        # print(f" ⚠️ [{strategy_name}] 無訊號，跳過儲存。")
         return
 
     # 1. 精準去重：確保 [日期, 股號, 策略] 的組合唯一
@@ -637,7 +637,7 @@ def dup_sort_save(df, strategy_name, table_name='signal_reports'):
 
     # 3. 儲存到 DB
     save_signals_to_db(df, table_name=table_name)
-    print(f" ✅ [{strategy_name}] 已去重並儲存 {len(df)} 筆資料。")
+    # print(f" ✅ [{strategy_name}] 已去重並儲存 {len(df)} 筆資料。")
 
 def update_to_tracking(row_id:int, symbol: str, buy_date: str, note: str):
     """

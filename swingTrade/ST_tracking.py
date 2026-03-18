@@ -499,7 +499,12 @@ else:
     st.markdown("---")
     
     holding_count = len(all_holding_df)
-    holding_avg_roi = all_holding_df['ROI%'].mean() if not all_holding_df.empty else 0
+    
+    # 修正：所有持股的平均 ROI 應該要用 總損益 / 總投入資金
+    total_holding_invest = all_holding_df['InvestAmt'].sum() if not all_holding_df.empty else 0
+    total_holding_pnl = all_holding_df['PnL'].sum() if not all_holding_df.empty else 0
+    holding_avg_roi = (total_holding_pnl / total_holding_invest * 100) if total_holding_invest > 0 else 0
+
 
     # ==========================================
     # 第二排 KPI：純現役績效 (排除殭屍/復活股)
@@ -517,7 +522,7 @@ else:
         # 計算差異 (Delta) = 現役 - 整體
         diff_count = act_count - holding_count
         # diff_invest = act_invest - current_exposure
-        diff_pnl = unrealized_pnl - act_pnl # 代表計算已實現損益
+        diff_pnl = act_pnl - total_holding_pnl # 代表不含現役的未實現
         diff_roi = act_roi - holding_avg_roi
 
         # 計算殭屍數量作為 delta 提示
@@ -542,7 +547,7 @@ else:
         ac3.metric(
             label="現役帳面損益 (未實現損益)", 
             value=f"${act_pnl:,.0f}",
-            # delta=f"${diff_pnl:,.0f} (已實現損益)", 
+            # delta=f"${diff_pnl:,.0f} (現役-整體)", 
             # delta_color="normal" # 依照數值變色 (負數自動變紅)
         )
         
