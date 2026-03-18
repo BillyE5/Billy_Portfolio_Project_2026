@@ -257,11 +257,11 @@ if __name__ == "__main__":
             dfi.export(styled_df, img_path, max_rows=-1)
 
             # 發送圖片到 TG
-            send_tg_photo(img_path, caption=f"📊 00981A 統一投信 買賣異動 ({date})")
+            send_tg_photo(img_path, caption=f"📊 00981A 統一投信 買賣異動【{date}】\n\n00981A成分股(需再點 '基金投資組合'):{ETF_URL}")
             
             # 發送 LINE 雲端連結
             gd_url = os.getenv("GD_00981A_URL", "")
-            line_msg = f"📊 00981A 統一投信 買賣異動 ({date})\n雲端: {gd_url}"
+            line_msg = f"📊 00981A 統一投信 買賣異動【{date}】\n雲端: {gd_url}\n\n00981A成分股(需再點 '基金投資組合'):{ETF_URL}"
             send_line_message(line_msg)
 
             # # 傳送完畢後，把本地端的暫存圖片刪除

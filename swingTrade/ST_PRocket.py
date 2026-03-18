@@ -212,12 +212,12 @@ if __name__ == "__main__":
     count_combined = len(combined_signals) if combined_signals else 0
     
     folder_url = os.getenv("GD_ST_REPORT_URL")
+    google_drive = f"完整內容已同步至雲端。\n雲端: {folder_url}" if len(combined_signals) > 0 else ""
     
     summary_msg = (
         f"✅ **{today_str} 選股策略報告**\n\n"
-        f"🚀 **KD金叉**：{count_combined} 檔\n"
-        "完整內容已同步至雲端。\n"
-        f'雲端: {folder_url}'
+        f"🚀 **KD金叉**：{count_combined} 檔\n\n"
+        f"{google_drive}"
     )
     
     # 發送通知
