@@ -148,7 +148,7 @@ def compare_with_prev_trading_day(current_date_str):
         print(error_msg)
         return error_msg, None
         
-    print(f"\n[比對分析] 今日: {current_date_str} vs 前一交易日: {prev_date_str}")
+    # print(f"\n[比對分析] 今日: {current_date_str} vs 前一交易日: {prev_date_str}")
     
     # 4. 讀取檔案
     df_new = pd.read_csv(file_new)
